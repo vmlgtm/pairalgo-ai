@@ -1,0 +1,110 @@
+[
+  {
+    "slug": "01_arrays_and_hashing",
+    "name": "Arrays & Hashing",
+    "weight": 0.12,
+    "description": "Hash maps, sets, frequency counting, prefix sums, and bucket sort."
+  },
+  {
+    "slug": "02_two_pointers",
+    "name": "Two Pointers",
+    "weight": 0.08,
+    "description": "Opposite ends, fast & slow pointers, two-sum on sorted arrays, partition."
+  },
+  {
+    "slug": "03_sliding_window",
+    "name": "Sliding Window",
+    "weight": 0.07,
+    "description": "Fixed size, dynamic expansion & contraction, frequency map inside window."
+  },
+  {
+    "slug": "04_stack",
+    "name": "Stack",
+    "weight": 0.06,
+    "description": "LIFO, monotonic stack for next greater element, parenthesis matching."
+  },
+  {
+    "slug": "05_binary_search",
+    "name": "Binary Search",
+    "weight": 0.07,
+    "description": "Standard binary search, search on answer space, rotated sorted arrays."
+  },
+  {
+    "slug": "06_linked_list",
+    "name": "Linked List",
+    "weight": 0.07,
+    "description": "Pointer manipulation, fast & slow pointers, reversal, merge k-sorted."
+  },
+  {
+    "slug": "07_trees",
+    "name": "Trees",
+    "weight": 0.1,
+    "description": "DFS, BFS, BST properties, tree construction, path sums, LCA, serialization."
+  },
+  {
+    "slug": "08_tries",
+    "name": "Tries",
+    "weight": 0.03,
+    "description": "Prefix trees, wildcard search, multi-word matching on grid."
+  },
+  {
+    "slug": "09_heap_and_priority_queue",
+    "name": "Heap / Priority Queue",
+    "weight": 0.06,
+    "description": "Min/Max heaps, Top-K elements, streaming median, task scheduler."
+  },
+  {
+    "slug": "10_backtracking",
+    "name": "Backtracking",
+    "weight": 0.05,
+    "description": "Subsets, permutations, combinations, search with pruning, N-Queens."
+  },
+  {
+    "slug": "11_graphs",
+    "name": "Graphs",
+    "weight": 0.09,
+    "description": "BFS, DFS, topological sort, Union-Find (disjoint set), cycle detection."
+  },
+  {
+    "slug": "12_advanced_graphs",
+    "name": "Advanced Graphs",
+    "weight": 0.04,
+    "description": "Dijkstra's shortest path, Prim's/Kruskal's MST, Bellman-Ford, Eulerian path."
+  },
+  {
+    "slug": "13_1d_dynamic_programming",
+    "name": "1-D Dynamic Programming",
+    "weight": 0.06,
+    "description": "Linear state transition, memoization, tabulation, house robber, coin change."
+  },
+  {
+    "slug": "14_2d_dynamic_programming",
+    "name": "2-D Dynamic Programming",
+    "weight": 0.05,
+    "description": "Grid paths, LCS, edit distance, target sum, knapsack variants."
+  },
+  {
+    "slug": "15_greedy",
+    "name": "Greedy",
+    "weight": 0.05,
+    "description": "Local optimal choice, jump game, gas station, partition labels."
+  },
+  {
+    "slug": "16_intervals",
+    "name": "Intervals",
+    "weight": 0.04,
+    "description": "Overlapping intervals, merging, insertion, meeting rooms."
+  },
+  {
+    "slug": "17_math_and_geometry",
+    "name": "Math & Geometry",
+    "weight": 0.03,
+    "description": "Matrix rotation, spiral traversal, modular arithmetic, fast exponentiation."
+  },
+  {
+    "slug": "18_bit_manipulation",
+    "name": "Bit Manipulation",
+    "weight": 0.04,
+    "description": "Bitwise XOR, AND, OR, bit masks, count set bits, single number."
+  }
+]
