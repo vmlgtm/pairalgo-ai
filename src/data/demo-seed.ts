@@ -1,7 +1,7 @@
 import type { ProblemProgress, AttemptLog } from '../engine/types';
 
 /**
- * List of 47 problem IDs pre-solved in demo mode.
+ * List of 52 problem IDs pre-solved in demo mode.
  * Strong coverage across fundamentals with deliberate gap in Graphs (e.g. Course Schedule)
  * to showcase WebMCP intelligent recommendation.
  */

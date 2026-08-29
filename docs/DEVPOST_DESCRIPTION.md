@@ -2,76 +2,83 @@
 
 ## Inspiration
 
-I’ve been preparing for staff-level engineering rounds recently, and my daily routine was frustrating: I'd solve a problem in my editor, switch to ChatGPT for a code review or a nudge, and get back either a hallucinated confirmation that my code "looks good" (when an edge case failed) or a full solution dump when I just needed a subtle hint.
+When practicing coding interview problems, asking an LLM for help usually fails in two ways:
+1. **Hallucination**: The model claims broken code "looks correct" because it cannot actually execute the code or evaluate edge cases.
+2. **Solution Dumping**: You ask for a subtle nudge, and it immediately dumps the full optimal solution, spoiling the problem.
 
-Most browser AI agents today try to interact with web apps via visual actuation and DOM scraping—taking screenshots, clicking around, and hoping classes didn't change. It's slow and fragile.
+Most browser AI agents try to interact with web apps by taking screenshots and scraping the DOM. This is slow, fragile, and lacks structured context.
 
-When I saw the WebMCP specification, the value was immediately clear. Instead of an agent guessing what’s on screen, the web app can expose typed tools (`run_tests`, `get_hint`, `get_recommendation`) and stream live state (`clientState`). Code executes inside a sandboxed Web Worker in the browser—the agent gets real JSON test outputs, and the user gets a pair programming coach that relies on deterministic execution instead of hallucinations.
+With **WebMCP (Web Model Context Protocol)**, the web app exposes typed execution tools (`run_tests`, `get_hint`, `get_recommendation`) and pushes live state (`clientState`) directly to the agent. Code executes in an isolated in-browser Web Worker, giving the agent deterministic test results so it can act as a reliable pair programming coach.
 
 ---
 
-## What it does
+## What It Does
 
-PairAlgo.ai is an algorithm workspace that exposes structured WebMCP tools directly to AI agents (like ChatGPT’s in-app browser or Chrome with WebMCP enabled).
+PairAlgo.ai is an in-browser algorithm workspace built for WebMCP. It allows browser agents (ChatGPT in-app browser, Chrome with WebMCP enabled) to inspect editor state, execute code deterministically, and provide progressive hints.
 
-### 1. Direct Workspace (Human Mode)
-- **150 curated challenges** across 18 core patterns (Arrays, Two Pointers, Graphs, Trees, 1D/2D DP, etc.) with verified test cases.
-- **Monaco Editor** with TypeScript support.
-- **Instant testing**: Press `Ctrl+S` / `Cmd+S` to run your solution against test cases in an in-browser Web Worker in under 10ms. No server round-trip, works offline.
-- **Transparent scoring**: Readiness, pattern confidence, SM-2 spaced repetition intervals, and daily streaks are derived purely from local attempt logs.
+### 1. Ambient State Synchronization (`setClientState`)
+The app continuously syncs session state to the agent via `navigator.tools.setClientState()`:
+- Active problem ID, difficulty, and target time
+- Test pass count (e.g. `3/5 passing`)
+- Hints revealed count (Levels 1–3)
+- Current interview readiness score and streak
 
-### 2. Agent-Assisted Workspace (WebMCP Mode)
-The app registers 6 typed tools via `navigator.tools.register()`:
-- `get_recommendation`: Finds the user's biggest skill gaps using pattern frequency weights and SM-2 review schedules, then returns the optimal next challenge.
-- `start_problem`: Loads the problem starter code into Monaco and starts the session timer.
-- `run_tests`: Executes the current editor code against the test suite in the Web Worker sandbox and returns pass/fail diffs.
-- `get_hint`: Returns tiered Socratic hints (Level 1: intuition $\rightarrow$ Level 2: data structure $\rightarrow$ Level 3: implementation detail).
-- `submit_solution`: Validates the full test suite, logs the attempt in IndexedDB, and updates the skill graph.
-- `get_skill_profile`: Returns the overall readiness score, streak, and per-pattern breakdown.
+The agent knows what the user is working on and whether tests pass without repetitive prompt questions.
 
-It also syncs ambient context to the agent via `navigator.tools.setClientState()`. The agent always knows which problem is active, time elapsed, tests passing, and hints revealed without having to ask.
+### 2. Six Typed WebMCP Tools
+The app registers 6 typed tools via `navigator.tools.register()` (with `document.modelContext` fallback):
+- `get_recommendation`: Returns the optimal next problem based on category skill gaps, interview frequency weights, and SM-2 review schedules.
+- `start_problem`: Loads the problem starter code into Monaco and resets the timer.
+- `run_tests`: Executes editor code in an isolated Web Worker sandbox and returns structured pass/fail JSON diffs, timing, and console logs.
+- `get_hint`: Returns 3 tiers of hints (Level 1: Intuition → Level 2: Data Structure → Level 3: Implementation Detail) so the agent guides without spoiling.
+- `submit_solution`: Validates the full test suite, logs the attempt in IndexedDB, and updates SM-2 repetition schedules.
+- `get_skill_profile`: Returns the user's readiness score, streak, and per-category breakdown.
 
-### Readiness Formula
+### 3. Deterministic Scoring Engine
+Readiness is calculated purely from IndexedDB attempt logs:
 $$\text{Readiness} = 0.40 \times \text{PatternStrength} + 0.25 \times \text{Retention} + 0.20 \times \text{Speed} + 0.15 \times \text{Independence}$$
 
 ---
 
-## How we built it
+## How It Works in Practice
 
-- **Frontend & Editor**: Vite, TypeScript, and `@monaco-editor/loader`.
-- **Execution Sandbox**: An isolated Web Worker running `new Function()` with a 2000ms execution timeout. Built custom BFS serializers and deserializers for `ListNode` and `TreeNode` so standard linked list and binary tree problems run natively in-browser.
-- **Storage**: IndexedDB (via `idb`) for offline-first persistence of attempt logs, custom problem notes, and skill graphs.
-- **WebMCP Integration**: Registered tool schemas with input/output validation, added ambient state sync, and included fallback checks for `document.modelContext`.
-- **Demo Mode**: Added a `?demo=true` query parameter that pre-populates IndexedDB with 47 completed problems, a 74% readiness score, and a 5-day streak so evaluators and judges can test agent flows immediately.
-
----
-
-## Challenges we ran into
-
-1. **WebMCP API variations**: The standard is experimental. We had to support multiple potential namespace implementations (`navigator.tools` vs `document.modelContext`) and ensure the entire app functions smoothly as a standalone tool when WebMCP isn't supported.
-2. **Serializing data structures across worker boundaries**: Standard `postMessage` calls can't serialize cyclical linked lists or tree object references directly. We wrote dedicated serialization helpers (`arrayToList`, `listToArray`, `arrayToTree`, `treeToArray`) and structural deep-equality assertions.
-3. **Designing non-trivial tool interactions**: We avoided making WebMCP tools simple button-click wrappers. Instead, tools return raw structured data (test diffs, hint tiers, skill gap weights), letting the LLM do what it's actually good at—explaining *why* a BFS cycle check failed or nudging the user without spoiling the solution.
+1. **Recommendation**: The user asks what to study. The agent calls `get_recommendation({ set: 'core-75' })`, which finds an unpracticed high-weight category (e.g. Graphs) and returns `course-schedule`.
+2. **Context Setup**: The agent calls `start_problem({ problemId: 'course-schedule' })`, loading the starter code into Monaco.
+3. **Execution & Coaching**: The user writes a BFS cycle detection solution and asks why it fails. The agent calls `run_tests()`, inspects the failing assertion, and calls `get_hint({ level: 2 })` to guide the user on in-degrees without revealing the solution.
+4. **Submission**: Once all tests pass, the agent calls `submit_solution()`, updating the user's progress and SM-2 review dates in IndexedDB.
 
 ---
 
-## Accomplishments that we're proud of
+## How We Built It
 
-- **Deterministic testing**: Test evaluations come from actual code execution in a sandbox, not LLM guesses.
-- **Sub-10ms feedback**: Zero network latency. `Ctrl+S` runs tests immediately in a background worker.
-- **150 real problems**: A complete bank of 150 algorithm challenges with test cases, complexity targets, and progressive hints—not just 2 or 3 hardcoded demos.
-- **Progressive enhancement**: The app is genuinely useful as a clean, fast standalone practice tool. WebMCP makes it better, but isn't a fragile hard requirement.
-
----
-
-## What we learned
-
-- **Ambient state is just as important as tools**: Registering tools is standard, but `setClientState()` is what makes the interaction feel like pair programming. When the agent already knows your active problem and failing test count, conversations are focused rather than repetitive.
-- **Browser-side compute is capable**: Web Workers + IndexedDB + Monaco provide a full coding and testing environment with zero backend infrastructure or hosting costs.
+- **Frontend & Editor**: Vite, TypeScript, and `@monaco-editor/loader` with `Ctrl+S` / `Cmd+S` instant testing.
+- **Web Worker Sandbox**: Runs untrusted code inside a Web Worker using `new Function()` with a 2500ms timeout guard to prevent infinite loops.
+- **Data Structure Serialization**: Custom BFS serializers and deserializers (`arrayToList`, `listToArray`, `arrayToTree`, `treeToArray`) with cycle detection, allowing `ListNode` and `TreeNode` problems to run across worker boundaries.
+- **Storage**: IndexedDB (via `idb`) for offline persistence of 150 challenges, attempt histories, notes, and SM-2 review intervals.
+- **WebMCP Evals**: Built an automated eval suite (`evals/webmcp-evals.json` and `tests/evals.test.ts`) to verify tool-calling accuracy across 6 core intents.
+- **Demo Mode**: `?demo=true` pre-populates IndexedDB with 52 completed problems, a 66% readiness score, and active practice history for rapid evaluation.
 
 ---
 
-## What's next for PairAlgo.ai
+## Challenges We Ran Into
 
-- **Multi-language sandbox**: Adding in-browser Python (Pyodide) and Go (WASM) execution.
-- **Visual algorithm debugger**: Interactive step-through visualizer for tree/graph traversals linked to WebMCP inspection tools.
-- **Mock interview mode**: An agent-driven mode that conducts timed 45-minute interviews with follow-up optimization questions and behavioral follow-through.
+1. **WebMCP API Fragmentation**: WebMCP implementations vary across browser builds. We built an adapter supporting `navigator.tools`, `document.modelContext`, and a `window.__webmcp_tools` test harness.
+2. **Worker Boundary Serialization**: Standard `postMessage` cannot transfer circular object references. We built dedicated BFS tree/list serializers and deep-equality assertions.
+3. **Structuring Tool Payloads**: Instead of wrapping UI buttons, tools return raw structured data (assertion diffs, hint levels, gap weights), allowing the model to reason about code rather than parse raw text.
+
+---
+
+## Accomplishments
+
+- **Deterministic Sandbox**: Actual in-browser code execution—zero hallucinated test passes.
+- **Sub-10ms Feedback**: Tests run locally with zero network round-trips.
+- **150 Real Problems**: Complete bank of 150 algorithm challenges across 18 patterns with verified test cases and 3-level hints.
+- **100% Client-Side**: No backend servers, zero database costs, works fully offline.
+
+---
+
+## What's Next
+
+- **Multi-Language Sandboxes**: In-browser Python (Pyodide) and Go (WASM) execution.
+- **Visual Traversal Debugger**: Interactive step-through animation for graph/tree traversals wired to WebMCP inspection tools.
+- **Timed Mock Interviews**: Agent-conducted 45-minute timed sessions with follow-up complexity questions.
