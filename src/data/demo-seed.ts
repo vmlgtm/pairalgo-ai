@@ -108,35 +108,33 @@ export function generateDemoData(baseDate: Date = new Date()): {
   const nowMs = baseDate.getTime();
   const dayMs = 24 * 60 * 60 * 1000;
 
-  // Streak days: 0 (today), -1, -2, -3, -4 (5 active days)
-  const streakOffsets = [0, 1, 2, 3, 4];
-
-  // Distribute the 47 problems across the last 30 days
+  // Distribute the 52 problems across recent practice history
   DEMO_SOLVED_PROBLEM_IDS.forEach((problemId, index) => {
-    // Determine days ago: first 10 within 0-4 days (for active streak), others spread out 5-30 days ago
+    // Determine days ago: first 5 on consecutive days (0, 1, 2, 3, 4) for a clean 5-day active streak.
+    // Index >= 5 starts from day 6 backwards to maintain an unbroken 5-day streak.
     let daysAgo: number;
-    if (index < 10) {
-      daysAgo = streakOffsets[index % streakOffsets.length];
+    if (index < 5) {
+      daysAgo = index; // 0, 1, 2, 3, 4 (gives exactly 5 consecutive active days)
     } else {
-      daysAgo = 4 + (index % 25);
+      daysAgo = 6 + (index % 24);
     }
 
     const attemptTime = new Date(nowMs - daysAgo * dayMs - (index * 15 * 60 * 1000));
     const timestamp = attemptTime.toISOString();
 
-    // SM-2 values:
-    // 2 problems overdue for review
-    const isOverdue = problemId === 'invert-binary-tree' || problemId === 'valid-parentheses';
-    const intervalDays = isOverdue ? 3 : (index % 4 === 0 ? 14 : index % 3 === 0 ? 7 : 3);
-    const repetitions = isOverdue ? 2 : (intervalDays >= 14 ? 4 : 2);
+    // SM-2 Spaced Repetition values:
+    // 3 problems overdue for review
+    const isOverdue = problemId === 'invert-binary-tree' || problemId === 'valid-parentheses' || problemId === 'merge-two-sorted-lists';
+    const intervalDays = isOverdue ? 3 : (index % 4 === 0 ? 14 : index % 3 === 0 ? 7 : 4);
+    const repetitions = isOverdue ? 2 : (intervalDays >= 14 ? 4 : 3);
     
-    // If overdue, nextReviewDate was 2 days ago
+    // If overdue, nextReviewDate was 1 day ago; otherwise future review date
     const nextReviewMs = isOverdue
-      ? nowMs - 2 * dayMs
-      : attemptTime.getTime() + intervalDays * dayMs;
+      ? nowMs - 1 * dayMs
+      : nowMs + intervalDays * dayMs;
 
-    const hintsUsed = index % 7 === 0 ? 1 : 0;
-    const timeSpentSeconds = 300 + (index % 8) * 90; // 5 to 17 minutes
+    const hintsUsed = index % 8 === 0 ? 1 : 0;
+    const timeSpentSeconds = 240 + (index % 6) * 60; // 4 to 9 minutes
 
     progressList.push({
       problemId,
@@ -160,25 +158,21 @@ export function generateDemoData(baseDate: Date = new Date()): {
       passed: true,
       timeSpentSeconds,
       hintsUsed,
-      code: `// Verified solution for ${problemId}\n// Practiced in Prep Cockpit`,
+      code: `// Verified solution for ${problemId}\n// Practiced in PairAlgo.ai`,
       mode: 'practice'
     });
   });
 
-  // Add a few extra review attempts in the 5-day streak to make timeline rich
-  for (let i = 0; i < 5; i++) {
-    const dAgo = i;
-    const extraTime = new Date(nowMs - dAgo * dayMs - 4 * 3600 * 1000);
-    attempts.push({
-      problemId: DEMO_SOLVED_PROBLEM_IDS[i],
-      timestamp: extraTime.toISOString(),
-      passed: true,
-      timeSpentSeconds: 420,
-      hintsUsed: 0,
-      code: `// Review session for ${DEMO_SOLVED_PROBLEM_IDS[i]}`,
-      mode: 'review'
-    });
-  }
+  // Add extra review attempt for a problem solved earlier in the streak
+  attempts.push({
+    problemId: 'two-sum',
+    timestamp: new Date(nowMs - 1000 * 60 * 45).toISOString(),
+    passed: true,
+    timeSpentSeconds: 180,
+    hintsUsed: 0,
+    code: `// Reviewed solution for two-sum\n// Practiced in PairAlgo.ai`,
+    mode: 'review'
+  });
 
   return { progressList, attempts };
 }

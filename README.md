@@ -109,7 +109,7 @@ The application is deployed live on **Vercel** with continuous deployment:
 
 🔗 **[https://pairalgo-ai.vercel.app/?demo=true](https://pairalgo-ai.vercel.app/?demo=true)**
 
-*(Pre-seeded with benchmark data: 47 solved problems, 74% readiness, 5-day streak, and SM-2 review intervals)*
+*(Pre-seeded with benchmark data: 52 solved problems, 84% readiness, 5-day streak, and 3 SM-2 spaced repetition reviews due today)*
 
 ### Try WebMCP in Browser Console / Agent Callers
 You can test the WebMCP tools directly in the browser console via the global inspection harness:
