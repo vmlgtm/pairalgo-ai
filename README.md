@@ -39,8 +39,8 @@ Instead of an AI agent blindly scraping the DOM or guessing button clicks, PairA
 ```mermaid
 flowchart TB
     subgraph BrowserAgent["AI Agent (ChatGPT / Chrome WebMCP)"]
-        Agent[LLM Agent]
-        Context[Ambient Client State]
+        Agent["LLM Agent"]
+        Context["Ambient Client State"]
     end
 
     subgraph WebMCPProtocol["WebMCP Protocol Layer"]
@@ -50,17 +50,17 @@ flowchart TB
     end
 
     subgraph AppCore["PairAlgo.ai Core Application"]
-        MainRouter[App Controller & State Router]
-        DashboardUI[Monochrome Dashboard UI]
-        WorkspaceUI[Split-Pane Monaco Workspace]
-        Engine[Deterministic Scoring & Spaced Repetition]
-        IDB[(IndexedDB Storage)]
+        MainRouter["App Controller & State Router"]
+        DashboardUI["Monochrome Dashboard UI"]
+        WorkspaceUI["Split-Pane Monaco Workspace"]
+        Engine["Deterministic Scoring & Spaced Repetition"]
+        IDB[("IndexedDB Storage")]
     end
 
     subgraph ExecutionSandbox["Web Worker Isolation"]
-        Worker[Web Worker Sandbox]
-        DSHelpers[ListNode / TreeNode Serializer]
-        Runner[new Function() Execution + Timeout Guard]
+        Worker["Web Worker Sandbox"]
+        DSHelpers["ListNode / TreeNode Serializer"]
+        Runner["new Function() Execution + Timeout Guard"]
     end
 
     Agent <--> Reg
