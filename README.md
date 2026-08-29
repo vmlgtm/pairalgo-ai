@@ -103,13 +103,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🧪 Demo Mode (for Judges & Evaluators)
+## 🧪 Live Deployment & Demo Mode (for Judges)
 
-To test the application with pre-seeded realistic progress (47 solved problems, 74% readiness, 5-day active streak, and review queues), append `?demo=true` to the URL:
+The application is deployed live on **Vercel** with continuous deployment on push:
 
-```
-http://localhost:3000/?demo=true
-```
+🔗 **[https://prep-cockpit.vercel.app/?demo=true](https://prep-cockpit.vercel.app/?demo=true)**
+
+*(Pre-seeded with realistic benchmark data: 47 solved problems, 74% readiness, 5-day streak, and SM-2 review intervals)*
 
 ### Try WebMCP in Browser Console / Agent Callers
 You can test the WebMCP tools directly in the browser console via the global inspection harness:
