@@ -1,0 +1,102 @@
+[
+  {
+    "id": "eval_recommendation_intent",
+    "description": "Verify agent calls get_recommendation when user asks for daily study plan",
+    "messages": [
+      {
+        "role": "user",
+        "content": "What algorithm problem should I practice today for my technical interview?"
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_recommendation",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "eval_start_problem_intent",
+    "description": "Verify agent opens problem workspace when user chooses a problem",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Let's start working on Course Schedule."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "start_problem",
+        "arguments": {
+          "problemId": "course-schedule"
+        }
+      }
+    ]
+  },
+  {
+    "id": "eval_socratic_hint_intent",
+    "description": "Verify agent requests appropriate hint level without spoiling full solution",
+    "messages": [
+      {
+        "role": "user",
+        "content": "I'm stuck on cycle detection in graphs. Can you give me a high-level intuition hint?"
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_hint",
+        "arguments": {
+          "level": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "eval_run_tests_intent",
+    "description": "Verify agent triggers sandboxed test suite execution",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Check my code against the test cases."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "run_tests",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "eval_submit_solution_intent",
+    "description": "Verify agent triggers submission and skill graph update when user finishes",
+    "messages": [
+      {
+        "role": "user",
+        "content": "All tests pass. Please submit my solution and record my progress."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "submit_solution",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "id": "eval_skill_profile_intent",
+    "description": "Verify agent fetches comprehensive readiness breakdown when user asks for stats",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Show me my current interview readiness score and category breakdown."
+      }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "get_skill_profile",
+        "arguments": {}
+      }
+    ]
+  }
+]
