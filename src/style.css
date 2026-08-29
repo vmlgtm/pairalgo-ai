@@ -188,9 +188,10 @@ header.app-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 900;
+  font-weight: 800;
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 12px;
+  letter-spacing: -0.5px;
   border-radius: 4px;
 }
 .brand-title {

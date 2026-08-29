@@ -1,10 +1,10 @@
-# Prep Cockpit ⚡️
-> **AI-Native Algorithm & Problem Solving Cockpit powered by WebMCP**  
+# PairAlgo.ai ⚡️
+> **AI-Native Algorithm Pair Practice Cockpit powered by WebMCP**  
 > Built for the **OpenAI WebMCP Challenge**
 
-Prep Cockpit is an open-source, client-side developer workspace designed to bridge human coding practice with AI agent coaching via the **WebMCP (Web Model Context Protocol)** standard.
+**PairAlgo.ai** is an open-source, client-side developer workspace designed to bridge human coding practice with AI pair coaching via the **WebMCP (Web Model Context Protocol)** standard.
 
-Instead of an AI agent blindly scraping the DOM or guessing button clicks, Prep Cockpit exposes **structured, typed WebMCP tools and client state** directly to browser-native agents (ChatGPT in-app browser, Google Chrome with WebMCP flags). All code execution is securely handled in-browser via a sandboxed Web Worker, and all progress tracking is deterministically calculated and persisted locally in IndexedDB.
+Instead of an AI agent blindly scraping the DOM or guessing button clicks, PairAlgo.ai exposes **structured, typed WebMCP tools and ambient client state** directly to browser-native agents (ChatGPT in-app browser, Google Chrome with WebMCP flags). All code execution is securely handled in-browser via a sandboxed Web Worker, and all progress tracking is deterministically calculated and persisted locally in IndexedDB.
 
 ---
 
@@ -13,7 +13,7 @@ Instead of an AI agent blindly scraping the DOM or guessing button clicks, Prep 
 1. **Browser-Native WebMCP Tools**: Exposes typed, structured tools directly to browser AI agents (`navigator.tools.register()` & `document.modelContext.registerTool()`). The agent can inspect state, run tests, offer Socratic hints, and log attempts without brittle DOM scraping.
 2. **Ambient Client State Sync**: Continuously broadcasts workspace view, timer, test pass counts, hints revealed, and readiness to the LLM agent via `navigator.tools.setClientState()`.
 3. **Declarative HTML Context**: Enhances notes and reflection forms with `data-model-context="problem_notes"` attributes for zero-overhead agent awareness.
-4. **In-Browser Web Worker Sandbox**: Executes solutions against test suites in an isolated Web Worker using `new Function()` with 2000ms timeout protection, console log capture, and DSA helper serialization (`ListNode`, `TreeNode`).
+4. **In-Browser Web Worker Sandbox**: Executes solutions against test suites in an isolated Web Worker using `new Function()` with 2500ms timeout protection, console log capture, and DSA helper serialization (`ListNode`, `TreeNode`).
 5. **Deterministic Scoring Engine**: Calculates pattern confidence, SM-2 spaced repetition intervals, retention, speed, and overall readiness using mathematical models (no LLM hallucinations in progress tracking).
 6. **Offline-First & Zero Backend**: 100% client-side (Static Vite bundle + IndexedDB + Web Workers). Fast, private, and zero operational cost.
 7. **High-Contrast Monochrome UI**: Clean, distraction-free interface optimized for readability across all displays (including MacBook Air M1).
@@ -49,7 +49,7 @@ flowchart TB
         Decl["Declarative HTML Annotations"]
     end
 
-    subgraph AppCore["Prep Cockpit Core Application"]
+    subgraph AppCore["PairAlgo.ai Core Application"]
         MainRouter[App Controller & State Router]
         DashboardUI[Monochrome Dashboard UI]
         WorkspaceUI[Split-Pane Monaco Workspace]
@@ -125,6 +125,9 @@ await window.callWebMCPTool('get_hint', { level: 1 });
 
 // Run tests
 await window.callWebMCPTool('run_tests');
+
+// Submit solution
+await window.callWebMCPTool('submit_solution', { timeSpentSeconds: 420 });
 
 // Inspect skill profile
 await window.callWebMCPTool('get_skill_profile');

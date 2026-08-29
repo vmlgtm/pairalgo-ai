@@ -63,10 +63,10 @@ export async function renderDashboard(
   container.innerHTML = `
     <header class="app-header">
       <div class="brand" id="brand-home">
-        <div class="brand-logo">P</div>
+        <div class="brand-logo">PA</div>
         <div>
-          <span class="brand-title">PREP COCKPIT</span>
-          <span class="brand-subtitle">AI-Native WebMCP</span>
+          <span class="brand-title">PAIRALGO.AI</span>
+          <span class="brand-subtitle">AI Pair Cockpit • WebMCP</span>
         </div>
       </div>
 

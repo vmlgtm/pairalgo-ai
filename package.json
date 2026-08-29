@@ -1,8 +1,8 @@
 {
-  "name": "prep-cockpit",
+  "name": "pairalgo",
   "version": "1.0.0",
   "private": false,
-  "description": "AI-Native Algorithm & Problem Solving Cockpit powered by WebMCP",
+  "description": "PairAlgo.ai — AI-Native Algorithm Pair Practice Cockpit powered by WebMCP",
   "type": "module",
   "scripts": {
     "dev": "vite",
