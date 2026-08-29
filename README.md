@@ -83,8 +83,8 @@ flowchart TB
 
 ```bash
 # Clone the repository
-git clone https://github.com/vmlgtm/prep-cockpit.git
-cd prep-cockpit
+git clone https://github.com/vmlgtm/pairalgo-ai.git
+cd pairalgo-ai
 
 # Install dependencies
 npm install
