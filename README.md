@@ -105,11 +105,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## 🧪 Live Deployment & Demo Mode (for Judges)
 
-The application is deployed live on **Vercel** with continuous deployment on push:
+The application is deployed live on **Vercel** with continuous deployment:
 
-🔗 **[https://prep-cockpit.vercel.app/?demo=true](https://prep-cockpit.vercel.app/?demo=true)**
+🔗 **[https://pairalgo-ai.vercel.app/?demo=true](https://pairalgo-ai.vercel.app/?demo=true)**
 
-*(Pre-seeded with realistic benchmark data: 47 solved problems, 74% readiness, 5-day streak, and SM-2 review intervals)*
+*(Pre-seeded with benchmark data: 47 solved problems, 74% readiness, 5-day streak, and SM-2 review intervals)*
 
 ### Try WebMCP in Browser Console / Agent Callers
 You can test the WebMCP tools directly in the browser console via the global inspection harness:
