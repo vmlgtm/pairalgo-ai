@@ -12,6 +12,8 @@ import { getRecommendation } from '../engine/recommend';
 import { setClientState, getClientState } from '../webmcp/state';
 import { getWebMCPStatus } from '../webmcp/register';
 import { showToast } from './toast';
+import { renderPairGuideHtml, bindGuidePromptClicks } from './guide';
+import { renderActivityFeedHtml, initLiveActivityFeed } from './activity-feed';
 import type { ProblemProgress } from '../engine/types';
 
 export async function renderDashboard(
@@ -104,70 +106,82 @@ export async function renderDashboard(
     <div class="dashboard-container">
       <!-- Top Mission Hero -->
       <div class="dashboard-hero">
-        <!-- Next Challenge Recommendation -->
-        <div class="card recommend-card">
-          <div class="card-header">
-            <span class="card-title">🎯 Next Recommended Challenge</span>
-            <span class="badge ${recommendation?.problem.difficulty || 'medium'}">${recommendation?.problem.difficulty || 'medium'}</span>
-          </div>
-
-          ${
-            recommendation
-              ? `
-            <div class="recommend-body">
-              <div class="recommend-problem-title">
-                ${recommendation.problem.title}
-                <span class="badge">${recommendation.problem.category}</span>
-              </div>
-              <div class="recommend-reason">
-                💡 ${recommendation.reason}
-              </div>
-              <div class="recommend-meta">
-                <span>⏱ Target: ${recommendation.problem.timeLimitMinutes} min</span>
-                <span>•</span>
-                <span>🔑 Pattern: <code>${recommendation.problem.pattern}</code></span>
-                <span>•</span>
-                <span>Complexity Goal: <code>${recommendation.problem.timeComplexity}</code></span>
-              </div>
-              <div style="margin-top: 6px;">
-                <button id="btn-start-recommended" class="primary" style="padding: 8px 16px;">
-                  Start Challenge →
-                </button>
-              </div>
+        <!-- Left Column: Recommendation + Pair Guide -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Next Challenge Recommendation -->
+          <div class="card recommend-card">
+            <div class="card-header">
+              <span class="card-title">🎯 Next Recommended Challenge</span>
+              <span class="badge ${recommendation?.problem.difficulty || 'medium'}">${recommendation?.problem.difficulty || 'medium'}</span>
             </div>
-            `
-              : `<div class="recommend-reason">All current challenges solved! Great work.</div>`
-          }
-        </div>
 
-        <!-- Spaced Repetition Due Queue -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">⚡ Spaced Repetition Due (${dueItems.length})</span>
-          </div>
-          <div class="due-list">
             ${
-              dueItems.length === 0
-                ? `<div style="color: var(--text-dim); font-size: 12px; font-family: var(--font-mono); padding: 12px 0;">No reviews due right now. Next review intervals active.</div>`
-                : dueItems
-                    .slice(0, 5)
-                    .map(
-                      item => `
-                  <div class="due-item">
-                    <div class="due-item-left">
-                      <span class="badge ${item.problem.difficulty}">${item.problem.difficulty[0].toUpperCase()}</span>
-                      <div>
-                        <div class="due-item-title">${item.problem.title}</div>
-                        <div class="due-item-overdue">${item.overdueDays >= 1 ? `${Math.round(item.overdueDays)}d overdue` : 'Due today'}</div>
-                      </div>
-                    </div>
-                    <button class="btn-due-review" data-problem-id="${item.problem.id}">Review</button>
-                  </div>
-                `
-                    )
-                    .join('')
+              recommendation
+                ? `
+              <div class="recommend-body">
+                <div class="recommend-problem-title">
+                  ${recommendation.problem.title}
+                  <span class="badge">${recommendation.problem.category}</span>
+                </div>
+                <div class="recommend-reason">
+                  💡 ${recommendation.reason}
+                </div>
+                <div class="recommend-meta">
+                  <span>⏱ Target: ${recommendation.problem.timeLimitMinutes} min</span>
+                  <span>•</span>
+                  <span>🔑 Pattern: <code>${recommendation.problem.pattern}</code></span>
+                  <span>•</span>
+                  <span>Complexity Goal: <code>${recommendation.problem.timeComplexity}</code></span>
+                </div>
+                <div style="margin-top: 6px;">
+                  <button id="btn-start-recommended" class="primary" style="padding: 8px 16px;">
+                    Start Challenge →
+                  </button>
+                </div>
+              </div>
+              `
+                : `<div class="recommend-reason">All current challenges solved! Great work.</div>`
             }
           </div>
+
+          <!-- Pair with ChatGPT Guide -->
+          ${renderPairGuideHtml('dashboard')}
+        </div>
+
+        <!-- Right Column: Due Queue + Agent Activity Feed -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <!-- Spaced Repetition Due Queue -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">⚡ Spaced Repetition Due (${dueItems.length})</span>
+            </div>
+            <div class="due-list">
+              ${
+                dueItems.length === 0
+                  ? `<div style="color: var(--text-dim); font-size: 12px; font-family: var(--font-mono); padding: 12px 0;">No reviews due right now. Next review intervals active.</div>`
+                  : dueItems
+                      .slice(0, 5)
+                      .map(
+                        item => `
+                    <div class="due-item">
+                      <div class="due-item-left">
+                        <span class="badge ${item.problem.difficulty}">${item.problem.difficulty[0].toUpperCase()}</span>
+                        <div>
+                          <div class="due-item-title">${item.problem.title}</div>
+                          <div class="due-item-overdue">${item.overdueDays >= 1 ? `${Math.round(item.overdueDays)}d overdue` : 'Due today'}</div>
+                        </div>
+                      </div>
+                      <button class="btn-due-review" data-problem-id="${item.problem.id}">Review</button>
+                    </div>
+                  `
+                      )
+                      .join('')
+              }
+            </div>
+          </div>
+
+          <!-- In-App Agent Activity Feed -->
+          ${renderActivityFeedHtml(undefined, 6)}
         </div>
       </div>
 
@@ -412,4 +426,8 @@ export async function renderDashboard(
     showToast('Demo data re-seeded successfully!', 'success');
     renderDashboard(container, onNavigateWorkspace);
   });
+
+  // Bind Pair with ChatGPT prompt chips & live activity feed
+  bindGuidePromptClicks(container);
+  initLiveActivityFeed(container);
 }

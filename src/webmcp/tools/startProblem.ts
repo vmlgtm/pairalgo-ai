@@ -1,5 +1,6 @@
 import { getProblem, getProgress } from '../../engine/db';
 import { setClientState } from '../state';
+import { addActivityEvent } from '../events';
 
 export const startProblemTool = {
   name: 'start_problem',
@@ -39,7 +40,19 @@ export const startProblemTool = {
       timeRemainingSeconds: problem.timeLimitMinutes * 60,
       testsPassed: 0,
       testsTotal: problem.testCases.length,
-      hintsRevealed: 0
+      hintsRevealed: 0,
+      editorDirty: false
+    });
+
+    addActivityEvent({
+      actor: 'agent',
+      type: 'problem_started',
+      summary: `ChatGPT started ${problem.title}`,
+      problemId: problem.id,
+      problemTitle: problem.title,
+      metadata: {
+        targetMinutes: problem.timeLimitMinutes
+      }
     });
 
     // Update URL hash for clean browser routing

@@ -1,6 +1,7 @@
 import { getProblem, getProgress } from '../../engine/db';
 import { runTests as executeSandbox } from '../../runner/runner';
 import { getClientState, setClientState } from '../state';
+import { addActivityEvent } from '../events';
 
 export const runTestsTool = {
   name: 'run_tests',
@@ -53,8 +54,48 @@ export const runTestsTool = {
     // Update ambient state
     setClientState({
       testsPassed: execResult.passedCount,
-      testsTotal: execResult.totalCount
+      testsTotal: execResult.totalCount,
+      editorDirty: false,
+      lastTestSummary: {
+        passedCount: execResult.passedCount,
+        totalCount: execResult.totalCount,
+        allPassed: execResult.allPassed,
+        totalTimeMs: execResult.totalTimeMs,
+        error: execResult.error
+      }
     });
+
+    addActivityEvent({
+      actor: 'agent',
+      type: 'tests_run',
+      summary: `ChatGPT ran tests — ${execResult.passedCount}/${execResult.totalCount} passing (${execResult.totalTimeMs}ms)`,
+      problemId: problem.id,
+      problemTitle: problem.title,
+      metadata: {
+        passCount: execResult.passedCount,
+        totalCount: execResult.totalCount,
+        durationMs: execResult.totalTimeMs,
+        allPassed: execResult.allPassed,
+        error: execResult.error
+      }
+    });
+
+    // Notify workspace UI if active
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('prep-cockpit:tests-executed', {
+            detail: {
+              problemId: problem.id,
+              execResult,
+              actor: 'agent'
+            }
+          })
+        );
+      } catch (e) {
+        // ignore in test environments
+      }
+    }
 
     return {
       success: true,

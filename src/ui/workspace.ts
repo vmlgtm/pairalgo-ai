@@ -3,12 +3,17 @@ import { runTests as executeSandbox } from '../runner/runner';
 import { submitSolutionTool } from '../webmcp/tools/submitSolution';
 import { initEditor, setEditorValue, getEditorValue, disposeEditor } from './editor';
 import { setClientState } from '../webmcp/state';
+import { addActivityEvent } from '../webmcp/events';
 import { getWebMCPStatus } from '../webmcp/register';
 import { showScorecardModal } from './modal';
 import { showToast } from './toast';
+import { renderPairGuideHtml, bindGuidePromptClicks, copyPromptToClipboard } from './guide';
+import { renderActivityFeedHtml, initLiveActivityFeed } from './activity-feed';
 import type { Problem, ProblemProgress, ExecutionResult } from '../engine/types';
 
 let timerInterval: any = null;
+let activeUnsubscribeActivity: (() => void) | null = null;
+let activeCleanupListeners: (() => void) | null = null;
 
 export async function renderWorkspace(
   container: HTMLElement,
@@ -16,10 +21,18 @@ export async function renderWorkspace(
   onNavigateDashboard: () => void,
   onNavigateProblem: (nextId: string) => void
 ): Promise<void> {
-  // Clear any existing timer
+  // Clear any existing timer & listeners
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
+  }
+  if (activeUnsubscribeActivity) {
+    activeUnsubscribeActivity();
+    activeUnsubscribeActivity = null;
+  }
+  if (activeCleanupListeners) {
+    activeCleanupListeners();
+    activeCleanupListeners = null;
   }
   disposeEditor();
 
@@ -37,6 +50,7 @@ export async function renderWorkspace(
   let hintsRevealed = existingProgress?.lastHintsUsed || 0;
   let remainingSeconds = problem.timeLimitMinutes * 60;
   let lastExecutionResult: ExecutionResult | null = null;
+  let lastTestedCode: string = initialCode;
   let activeTestCaseIndex = 0;
 
   // Set ambient client state
@@ -46,7 +60,8 @@ export async function renderWorkspace(
     timeRemainingSeconds: remainingSeconds,
     testsPassed: 0,
     testsTotal: problem.testCases.length,
-    hintsRevealed
+    hintsRevealed,
+    editorDirty: false
   });
 
   const formatTimer = (sec: number) => {
@@ -84,7 +99,7 @@ export async function renderWorkspace(
     </header>
 
     <div class="workspace-container">
-      <!-- Left Panel: Problem Spec & Test Runner -->
+      <!-- Left Panel: Problem Spec, Guide, Activity Feed & Test Runner -->
       <div class="workspace-left-panel">
         <div class="workspace-header">
           <div class="workspace-title-group">
@@ -116,6 +131,9 @@ export async function renderWorkspace(
             </div>
           </div>
 
+          <!-- Pair with ChatGPT Guide Card -->
+          ${renderPairGuideHtml('workspace')}
+
           <!-- Socratic Hints Drawer -->
           <div class="hints-container">
             <div class="hints-header">
@@ -132,6 +150,9 @@ export async function renderWorkspace(
               ${renderHintsHtml(problem, hintsRevealed)}
             </div>
           </div>
+
+          <!-- In-App Agent Activity Feed Scoped to Active Problem -->
+          ${renderActivityFeedHtml(problem.id, 6)}
 
           <!-- Declarative HTML WebMCP Notes Scratchpad -->
           <div class="notes-container">
@@ -172,7 +193,7 @@ export async function renderWorkspace(
         </div>
       </div>
 
-      <!-- Right Panel: Monaco Editor & Controls -->
+      <!-- Right Panel: Monaco Editor, Dirty Cue & Controls -->
       <div class="workspace-right-panel">
         <div class="editor-top-bar">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -185,6 +206,17 @@ export async function renderWorkspace(
         </div>
 
         <div id="monaco-editor-container" class="monaco-container"></div>
+
+        <!-- Subtle "Run Latest Code" Dirty State Cue -->
+        <div id="editor-dirty-cue" class="dirty-cue-banner" style="display: none; margin: 0 16px 8px 16px;">
+          <div class="dirty-cue-left">
+            <div class="dirty-cue-dot"></div>
+            <span class="dirty-cue-text">Code changed since last test. Ask ChatGPT to run your latest code.</span>
+          </div>
+          <button class="dirty-cue-copy-btn" data-copy-prompt="Run my latest code and explain any failing test." title="Click to copy prompt for ChatGPT">
+            <span>📋 Copy Prompt</span>
+          </button>
+        </div>
 
         <div class="editor-bottom-bar">
           <div id="editor-status" class="editor-status-text">
@@ -237,66 +269,21 @@ export async function renderWorkspace(
     }
   }
 
-  // Setup Notes Auto-Save
-  const notesTextarea = container.querySelector('#notes-textarea') as HTMLTextAreaElement;
-  notesTextarea?.addEventListener('input', async () => {
-    const notesVal = notesTextarea.value;
-    const prog: ProblemProgress = (await getProgress(activeProblem.id)) || {
-      problemId: activeProblem.id,
-      status: 'unattempted',
-      solveCount: 0,
-      failCount: 0,
-      sm2IntervalDays: 1,
-      sm2Repetitions: 0,
-      sm2EaseFactor: 2.5
-    };
-    prog.savedNotes = notesVal;
-    await saveProgress(prog);
-  });
-
-  // Runner Function
-  const handleRunTests = async () => {
-    const code = getEditorValue();
+  // Update Test Results UI across panel
+  function updateTestResultsUI(result: ExecutionResult) {
+    lastExecutionResult = result;
     const statusEl = container.querySelector('#editor-status') as HTMLElement;
     const resultsMeta = container.querySelector('#test-results-meta') as HTMLElement;
 
-    if (statusEl) statusEl.innerHTML = `Running in sandbox...`;
-
-    // Save code to progress
-    const prog: ProblemProgress = (await getProgress(activeProblem.id)) || {
-      problemId: activeProblem.id,
-      status: 'unattempted',
-      solveCount: 0,
-      failCount: 0,
-      sm2IntervalDays: 1,
-      sm2Repetitions: 0,
-      sm2EaseFactor: 2.5
-    };
-    prog.savedCode = code;
-    await saveProgress(prog);
-
-    const result = await executeSandbox(activeProblem, code);
-    lastExecutionResult = result;
-
-    // Update ambient state
-    setClientState({
-      testsPassed: result.passedCount,
-      testsTotal: result.totalCount
-    });
-
-    // Update status text
     if (result.error) {
       if (statusEl) statusEl.innerHTML = `<span style="color: var(--red);">Error: ${result.error}</span>`;
       if (resultsMeta) resultsMeta.innerHTML = `<span style="color: var(--red);">Execution Error</span>`;
-      showToast(result.error, 'error');
     } else if (result.allPassed) {
       if (statusEl) statusEl.innerHTML = `<span style="color: var(--green);">✓ All ${result.passedCount}/${result.totalCount} Tests Passed (${result.totalTimeMs}ms)</span>`;
       if (resultsMeta) resultsMeta.innerHTML = `<span style="color: var(--green);">${result.passedCount}/${result.totalCount} Passed (${result.totalTimeMs}ms)</span>`;
-      showToast(`All ${result.passedCount} tests passed!`, 'success');
     } else {
       if (statusEl) statusEl.innerHTML = `<span style="color: var(--red);">✕ ${result.passedCount}/${result.totalCount} Tests Passed</span>`;
       if (resultsMeta) resultsMeta.innerHTML = `<span style="color: var(--red);">${result.passedCount}/${result.totalCount} Passed</span>`;
-      showToast(`${result.totalCount - result.passedCount} tests failed`, 'warning');
     }
 
     // Update test tabs
@@ -330,7 +317,7 @@ export async function renderWorkspace(
     }
 
     renderSelectedTestCase();
-  };
+  }
 
   const renderSelectedTestCase = () => {
     const detailContainer = container.querySelector('#tc-detail-container');
@@ -338,6 +325,90 @@ export async function renderWorkspace(
     const tc = activeProblem.testCases[activeTestCaseIndex];
     const res = lastExecutionResult?.results.find(r => r.testIndex === activeTestCaseIndex) || null;
     detailContainer.innerHTML = renderTestCaseDetail(tc, res);
+  };
+
+  // Setup Notes Auto-Save
+  const notesTextarea = container.querySelector('#notes-textarea') as HTMLTextAreaElement;
+  notesTextarea?.addEventListener('input', async () => {
+    const notesVal = notesTextarea.value;
+    const prog: ProblemProgress = (await getProgress(activeProblem.id)) || {
+      problemId: activeProblem.id,
+      status: 'unattempted',
+      solveCount: 0,
+      failCount: 0,
+      sm2IntervalDays: 1,
+      sm2Repetitions: 0,
+      sm2EaseFactor: 2.5
+    };
+    prog.savedNotes = notesVal;
+    await saveProgress(prog);
+  });
+
+  // Runner Function for local execution
+  const handleRunTests = async () => {
+    const code = getEditorValue();
+    const statusEl = container.querySelector('#editor-status') as HTMLElement;
+    if (statusEl) statusEl.innerHTML = `Running in sandbox...`;
+
+    // Save code to progress
+    const prog: ProblemProgress = (await getProgress(activeProblem.id)) || {
+      problemId: activeProblem.id,
+      status: 'unattempted',
+      solveCount: 0,
+      failCount: 0,
+      sm2IntervalDays: 1,
+      sm2Repetitions: 0,
+      sm2EaseFactor: 2.5
+    };
+    prog.savedCode = code;
+    await saveProgress(prog);
+
+    const result = await executeSandbox(activeProblem, code);
+    lastTestedCode = code;
+
+    // Clear dirty cue
+    const dirtyCue = container.querySelector('#editor-dirty-cue') as HTMLElement;
+    if (dirtyCue) dirtyCue.style.display = 'none';
+
+    // Update ambient state
+    setClientState({
+      testsPassed: result.passedCount,
+      testsTotal: result.totalCount,
+      editorDirty: false,
+      lastTestSummary: {
+        passedCount: result.passedCount,
+        totalCount: result.totalCount,
+        allPassed: result.allPassed,
+        totalTimeMs: result.totalTimeMs,
+        error: result.error
+      }
+    });
+
+    // Record user activity event
+    addActivityEvent({
+      actor: 'user',
+      type: 'tests_run',
+      summary: `You ran tests — ${result.passedCount}/${result.totalCount} passing (${result.totalTimeMs}ms)`,
+      problemId: activeProblem.id,
+      problemTitle: activeProblem.title,
+      metadata: {
+        passCount: result.passedCount,
+        totalCount: result.totalCount,
+        durationMs: result.totalTimeMs,
+        allPassed: result.allPassed,
+        error: result.error
+      }
+    });
+
+    updateTestResultsUI(result);
+
+    if (result.error) {
+      showToast(result.error, 'error');
+    } else if (result.allPassed) {
+      showToast(`All ${result.passedCount} tests passed!`, 'success');
+    } else {
+      showToast(`${result.totalCount - result.passedCount} tests failed`, 'warning');
+    }
   };
 
   // Submit Solution Function
@@ -356,6 +427,28 @@ export async function renderWorkspace(
     }
   };
 
+  // Reactive listener for WebMCP agent test execution
+  const onTestsExecuted = (e: any) => {
+    const detail = e.detail;
+    if (detail && detail.problemId === activeProblem.id && detail.execResult) {
+      lastTestedCode = getEditorValue();
+      const dirtyCue = container.querySelector('#editor-dirty-cue') as HTMLElement;
+      if (dirtyCue) dirtyCue.style.display = 'none';
+      updateTestResultsUI(detail.execResult);
+    }
+  };
+  window.addEventListener('prep-cockpit:tests-executed', onTestsExecuted);
+
+  // Reactive listener for WebMCP hint reveal
+  const onHintRevealed = (e: any) => {
+    const detail = e.detail;
+    if (detail && detail.problemId === activeProblem.id && detail.hintsRevealed !== undefined) {
+      hintsRevealed = detail.hintsRevealed;
+      updateHintsUI();
+    }
+  };
+  window.addEventListener('prep-cockpit:hint-revealed', onHintRevealed);
+
   // Listen for Scorecard Event
   const onScorecard = (e: any) => {
     const data = e.detail;
@@ -372,6 +465,12 @@ export async function renderWorkspace(
   };
   window.addEventListener('prep-cockpit:scorecard', onScorecard);
 
+  activeCleanupListeners = () => {
+    window.removeEventListener('prep-cockpit:tests-executed', onTestsExecuted);
+    window.removeEventListener('prep-cockpit:hint-revealed', onHintRevealed);
+    window.removeEventListener('prep-cockpit:scorecard', onScorecard);
+  };
+
   // Initialize Monaco Editor
   const editorContainer = container.querySelector('#monaco-editor-container') as HTMLElement;
   await initEditor(
@@ -381,6 +480,7 @@ export async function renderWorkspace(
       handleRunTests();
     },
     async (newCode) => {
+      // Save code
       const prog: ProblemProgress = (await getProgress(activeProblem.id)) || {
         problemId: activeProblem.id,
         status: 'unattempted',
@@ -392,18 +492,51 @@ export async function renderWorkspace(
       };
       prog.savedCode = newCode;
       await saveProgress(prog);
+
+      // Check if code changed from last tested code
+      const isDirty = newCode !== lastTestedCode;
+      const dirtyCue = container.querySelector('#editor-dirty-cue') as HTMLElement;
+      if (dirtyCue) {
+        dirtyCue.style.display = isDirty ? 'flex' : 'none';
+      }
+      setClientState({ editorDirty: isDirty });
     }
   );
 
+  // Bind Pair Guide prompt clicks & live activity feed
+  bindGuidePromptClicks(container);
+  activeUnsubscribeActivity = initLiveActivityFeed(container, { problemId: problem.id, maxItems: 6 });
+
+  // Bind Dirty Cue Copy Prompt Button
+  container.querySelectorAll('.dirty-cue-copy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const promptText = btn.getAttribute('data-copy-prompt');
+      if (promptText) {
+        copyPromptToClipboard(promptText, btn as HTMLElement);
+      }
+    });
+  });
+
   // Event Listeners
-  container.querySelector('#btn-back-dashboard')?.addEventListener('click', onNavigateDashboard);
-  container.querySelector('#workspace-brand')?.addEventListener('click', onNavigateDashboard);
+  container.querySelector('#btn-back-dashboard')?.addEventListener('click', () => {
+    if (activeCleanupListeners) activeCleanupListeners();
+    onNavigateDashboard();
+  });
+  container.querySelector('#workspace-brand')?.addEventListener('click', () => {
+    if (activeCleanupListeners) activeCleanupListeners();
+    onNavigateDashboard();
+  });
   container.querySelector('#btn-run-tests')?.addEventListener('click', handleRunTests);
   container.querySelector('#btn-submit')?.addEventListener('click', handleSubmitSolution);
 
   container.querySelector('#btn-reset-code')?.addEventListener('click', () => {
     if (confirm('Reset code to starter template?')) {
       setEditorValue(activeProblem.starterCode);
+      lastTestedCode = activeProblem.starterCode;
+      const dirtyCue = container.querySelector('#editor-dirty-cue') as HTMLElement;
+      if (dirtyCue) dirtyCue.style.display = 'none';
+      setClientState({ editorDirty: false });
       showToast('Code reset to starter template', 'info');
     }
   });
@@ -413,6 +546,18 @@ export async function renderWorkspace(
       hintsRevealed++;
       setClientState({ hintsRevealed });
       updateHintsUI();
+
+      addActivityEvent({
+        actor: 'user',
+        type: 'hint_provided',
+        summary: `You revealed Hint ${hintsRevealed}`,
+        problemId: activeProblem.id,
+        problemTitle: activeProblem.title,
+        metadata: {
+          hintLevel: hintsRevealed
+        }
+      });
+
       showToast(`Hint ${hintsRevealed} revealed`, 'info');
     }
   });

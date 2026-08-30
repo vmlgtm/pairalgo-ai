@@ -133,6 +133,14 @@ export interface ClientState {
   userReadiness: number;
   streakDays: number;
   targetFilter?: 'all' | 'core-75' | 'extended-150';
+  editorDirty?: boolean;
+  lastTestSummary?: {
+    passedCount: number;
+    totalCount: number;
+    allPassed: boolean;
+    totalTimeMs: number;
+    error?: string;
+  };
 }
 
 export interface RecommendationResult {

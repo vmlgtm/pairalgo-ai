@@ -11,13 +11,15 @@ Instead of an AI agent blindly scraping the DOM or guessing button clicks, PairA
 ## 🌟 Key Capabilities
 
 1. **Browser-Native WebMCP Tools**: Exposes typed, structured tools directly to browser AI agents (`navigator.tools.register()` & `document.modelContext.registerTool()`). The agent can inspect state, run tests, offer Socratic hints, and log attempts without brittle DOM scraping.
-2. **Ambient Client State Sync**: Continuously broadcasts workspace view, timer, test pass counts, hints revealed, and readiness to the LLM agent via `navigator.tools.setClientState()`.
-3. **Declarative HTML Context**: Enhances notes and reflection forms with `data-model-context="problem_notes"` attributes for zero-overhead agent awareness.
-4. **In-Browser Web Worker Sandbox**: Executes solutions against test suites in an isolated Web Worker using `new Function()` with 2500ms timeout protection, console log capture, and DSA helper serialization (`ListNode`, `TreeNode`).
-5. **Deterministic Scoring Engine**: Calculates pattern confidence, SM-2 spaced repetition intervals, retention, speed, and overall readiness using mathematical models (no LLM hallucinations in progress tracking).
-6. **Offline-First & Zero Backend**: 100% client-side (Static Vite bundle + IndexedDB + Web Workers). Fast, private, and zero operational cost.
-7. **High-Contrast Monochrome UI**: Clean, distraction-free interface optimized for readability across all displays (including MacBook Air M1).
-8. **Curated Problem Bank**: 150 computer science algorithm challenges across 18 core patterns with verified test suites and multi-tier progressive hints.
+2. **Continuous Agent Loop & In-App Activity Feed**: Seamless pair-programming onboarding guide with 1-click copyable prompts, a real-time chronological agent activity feed (`ChatGPT` vs `You`), and reactive UI updates as the agent acts.
+3. **Actionable "Run Latest Code" Cue**: Detects code changes since the last test run and guides the user to test the latest code with ChatGPT, without auto-submitting or silently transmitting raw keystrokes.
+4. **Ambient Client State Sync**: Continuously broadcasts workspace view, timer, test pass counts, hints revealed, and readiness to the LLM agent via `navigator.tools.setClientState()`.
+5. **Declarative HTML Context**: Enhances notes and reflection forms with `data-model-context="problem_notes"` attributes for zero-overhead agent awareness.
+6. **In-Browser Web Worker Sandbox**: Executes solutions against test suites in an isolated Web Worker using `new Function()` with 2500ms timeout protection, console log capture, and DSA helper serialization (`ListNode`, `TreeNode`).
+7. **Deterministic Scoring Engine**: Calculates pattern confidence, SM-2 spaced repetition intervals, retention, speed, and overall readiness using mathematical models (no LLM hallucinations in progress tracking).
+8. **Offline-First & Zero Backend**: 100% client-side (Static Vite bundle + IndexedDB + Web Workers). Fast, private, and zero operational cost.
+9. **High-Contrast Monochrome UI**: Clean, distraction-free interface optimized for readability across all displays (including MacBook Air M1).
+10. **Curated Problem Bank**: 150 computer science algorithm challenges across 18 core patterns with verified test suites and multi-tier progressive hints.
 
 ---
 
@@ -39,7 +41,7 @@ Instead of an AI agent blindly scraping the DOM or guessing button clicks, PairA
 ```mermaid
 flowchart TB
     subgraph BrowserAgent["AI Agent (ChatGPT / Chrome WebMCP)"]
-        Agent["LLM Agent"]
+        Agent["LLM Agent (GPT-5.6 Terra)"]
         Context["Ambient Client State"]
     end
 
@@ -47,12 +49,14 @@ flowchart TB
         Reg["navigator.tools.register()"]
         State["navigator.tools.setClientState()"]
         Decl["Declarative HTML Annotations"]
+        Evts["Activity Event Bus & Dispatcher"]
     end
 
     subgraph AppCore["PairAlgo.ai Core Application"]
         MainRouter["App Controller & State Router"]
-        DashboardUI["Monochrome Dashboard UI"]
+        DashboardUI["Dashboard & Pair Guide"]
         WorkspaceUI["Split-Pane Monaco Workspace"]
+        FeedUI["In-App Agent Activity Feed"]
         Engine["Deterministic Scoring & Spaced Repetition"]
         IDB[("IndexedDB Storage")]
     end
@@ -68,6 +72,8 @@ flowchart TB
     Agent <--> Decl
     Reg <--> MainRouter
     State <--> MainRouter
+    Reg --> Evts
+    Evts --> FeedUI
     MainRouter <--> DashboardUI
     MainRouter <--> WorkspaceUI
     MainRouter <--> Engine
@@ -76,6 +82,18 @@ flowchart TB
     Runner --> Worker
     Worker --> DSHelpers
 ```
+
+---
+
+## 🤝 Continuous Agent Workflow (ChatGPT Pair-Programming)
+
+PairAlgo bridges the human developer workflow with ChatGPT via seamless WebMCP tool calls:
+
+1. **Ask for recommendations**: Ask ChatGPT `"What should I practice today?"`. The agent executes `get_recommendation` and suggests the optimal challenge.
+2. **Start hands-free**: Ask ChatGPT `"Start the recommended problem."`. The workspace switches view, loads starter code in Monaco, and logs the event in the **In-App Agent Activity Feed**.
+3. **Code & test interactively**: Write your solution in Monaco. If code changes after testing, an actionable cue prompts you to ask ChatGPT to run the latest code.
+4. **Targeted coaching**: Ask ChatGPT `"Run my latest code and explain any failing test."` or `"Give me hint 1 without revealing the solution."`. The UI updates live with assertion results and hints.
+5. **Private by design**: Code is only evaluated when explicitly requested via `run_tests` or `submit_solution`. Keystrokes are never auto-transmitted.
 
 ---
 

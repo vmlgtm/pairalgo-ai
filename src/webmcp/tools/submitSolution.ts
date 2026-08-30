@@ -18,6 +18,7 @@ import {
 } from '../../engine/scoring';
 import { calculateStreak } from '../../engine/streak';
 import { getClientState, setClientState } from '../state';
+import { addActivityEvent } from '../events';
 import type { ProblemProgress, AttemptLog } from '../../engine/types';
 
 export const submitSolutionTool = {
@@ -139,6 +140,26 @@ export const submitSolutionTool = {
       };
       await saveProgress(updatedProgress);
 
+      setClientState({
+        testsPassed: execResult.passedCount,
+        testsTotal: execResult.totalCount,
+        editorDirty: false
+      });
+
+      addActivityEvent({
+        actor: 'agent',
+        type: 'solution_submitted',
+        summary: `ChatGPT submitted solution — Failed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
+        problemId: problem.id,
+        problemTitle: problem.title,
+        metadata: {
+          outcome: 'failed',
+          passCount: execResult.passedCount,
+          totalCount: execResult.totalCount,
+          error: execResult.error
+        }
+      });
+
       return {
         success: false,
         passed: false,
@@ -236,7 +257,21 @@ export const submitSolutionTool = {
       userReadiness: skillGraph.overallReadiness,
       streakDays: skillGraph.streakDays,
       testsPassed: execResult.passedCount,
-      testsTotal: execResult.totalCount
+      testsTotal: execResult.totalCount,
+      editorDirty: false
+    });
+
+    addActivityEvent({
+      actor: 'agent',
+      type: 'solution_submitted',
+      summary: `ChatGPT submitted solution — Passed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
+      problemId: problem.id,
+      problemTitle: problem.title,
+      metadata: {
+        outcome: 'passed',
+        passCount: execResult.passedCount,
+        totalCount: execResult.totalCount
+      }
     });
 
     // Trigger UI scorecard modal event

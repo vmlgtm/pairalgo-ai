@@ -1,6 +1,7 @@
 import { getAllCategories, getAllProblems, getAllProgress, getAllAttempts } from '../../engine/db';
 import { getRecommendation } from '../../engine/recommend';
 import { getClientState, setClientState } from '../state';
+import { addActivityEvent } from '../events';
 
 export const getRecommendationTool = {
   name: 'get_recommendation',
@@ -57,6 +58,18 @@ export const getRecommendationTool = {
     // Inform state
     setClientState({
       targetFilter: (filterSet as any) || 'all'
+    });
+
+    addActivityEvent({
+      actor: 'agent',
+      type: 'recommendation',
+      summary: `ChatGPT recommended ${recommendation.problem.title}${recommendation.reason ? ` — ${recommendation.reason}` : ''}`,
+      problemId: recommendation.problem.id,
+      problemTitle: recommendation.problem.title,
+      metadata: {
+        reason: recommendation.reason,
+        priority: recommendation.priority
+      }
     });
 
     return {

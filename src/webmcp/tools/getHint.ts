@@ -1,5 +1,6 @@
 import { getProblem } from '../../engine/db';
 import { getClientState, setClientState } from '../state';
+import { addActivityEvent } from '../events';
 
 export const getHintTool = {
   name: 'get_hint',
@@ -50,6 +51,35 @@ export const getHintTool = {
     setClientState({
       hintsRevealed: newHintsRevealed
     });
+
+    addActivityEvent({
+      actor: 'agent',
+      type: 'hint_provided',
+      summary: `ChatGPT provided Hint ${level}`,
+      problemId: problem.id,
+      problemTitle: problem.title,
+      metadata: {
+        hintLevel: level
+      }
+    });
+
+    // Notify workspace UI if active
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('prep-cockpit:hint-revealed', {
+            detail: {
+              problemId: problem.id,
+              level,
+              hintsRevealed: newHintsRevealed,
+              actor: 'agent'
+            }
+          })
+        );
+      } catch (e) {
+        // ignore in test environments
+      }
+    }
 
     return {
       success: true,
