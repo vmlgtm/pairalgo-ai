@@ -21,43 +21,54 @@ export const ALL_TOOLS: WebMCPToolDefinition[] = [
   getSkillProfileTool
 ];
 
+let registrationStatus: 'idle' | 'ready' | 'fallback' | 'failed' = 'idle';
+
+export function getWebMCPStatus(): 'idle' | 'ready' | 'fallback' | 'failed' {
+  return registrationStatus;
+}
+
 /**
  * Registers all Prep Cockpit tools with the WebMCP browser protocol.
- * Supports standard navigator.tools, document.modelContext, and window.__webmcp_tools.
+ * Supports standard document.modelContext, legacy navigator.tools, and window.__webmcp_tools.
  */
-export function registerAllTools(): void {
+export async function registerAllTools(): Promise<string[]> {
   const registeredNames: string[] = [];
+  const modelContextAvailable = typeof document !== 'undefined' && Boolean((document as any).modelContext?.registerTool);
+  const navigatorToolsAvailable = typeof navigator !== 'undefined' && Boolean((navigator as any).tools?.register);
+  const hasProvider = modelContextAvailable || navigatorToolsAvailable;
+
+  const successfullyRegistered = new Set<string>();
 
   for (const tool of ALL_TOOLS) {
-    // 1. Standard WebMCP via navigator.tools.register()
-    if (typeof navigator !== 'undefined' && (navigator as any).tools?.register) {
+    // 1. Standard WebMCP imperative API: document.modelContext.registerTool()
+    if (modelContextAvailable) {
       try {
-        (navigator as any).tools.register({
+        await (document as any).modelContext.registerTool({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.parameters,
+          execute: async (args: any, _options?: any) => tool.execute(args)
+        });
+        successfullyRegistered.add(tool.name);
+      } catch (err) {
+        console.error(`[WebMCP] Failed to register "${tool.name}" on document.modelContext:`, err);
+      }
+    }
+
+    // 2. Legacy navigator.tools adapter
+    if (navigatorToolsAvailable) {
+      try {
+        await (navigator as any).tools.register({
           name: tool.name,
           description: tool.description,
           parameters: tool.parameters,
           handler: tool.execute
         });
+        successfullyRegistered.add(tool.name);
       } catch (err) {
         console.warn(`[WebMCP] Failed to register "${tool.name}" on navigator.tools:`, err);
       }
     }
-
-    // 2. Alternative / experimental standard: document.modelContext.registerTool()
-    if (typeof document !== 'undefined' && (document as any).modelContext?.registerTool) {
-      try {
-        (document as any).modelContext.registerTool({
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.parameters,
-          handler: tool.execute
-        });
-      } catch (err) {
-        console.warn(`[WebMCP] Failed to register "${tool.name}" on document.modelContext:`, err);
-      }
-    }
-
-    registeredNames.push(tool.name);
   }
 
   // 3. Fallback & developer inspection bridge on window
@@ -74,13 +85,34 @@ export function registerAllTools(): void {
       }
       return tool.execute(args);
     };
+  }
 
+  if (hasProvider) {
+    if (successfullyRegistered.size > 0) {
+      registrationStatus = 'ready';
+      registeredNames.push(...Array.from(successfullyRegistered));
+      console.log(
+        `%c[WebMCP] Successfully registered ${registeredNames.length} AI agent tools:\n` +
+        registeredNames.map(n => ` • ${n}`).join('\n'),
+        'color: #4ade80; font-weight: bold;'
+      );
+    } else {
+      registrationStatus = 'failed';
+      console.error('[WebMCP] Tool registration failed: No tools could be registered with the WebMCP provider.');
+    }
+  } else {
+    registrationStatus = 'fallback';
+    for (const tool of ALL_TOOLS) {
+      registeredNames.push(tool.name);
+    }
     console.log(
-      `%c[WebMCP] Successfully registered ${registeredNames.length} AI agent tools:\n` +
+      `%c[WebMCP Fallback] Successfully registered ${registeredNames.length} AI agent tools:\n` +
       registeredNames.map(n => ` • ${n}`).join('\n'),
       'color: #4ade80; font-weight: bold;'
     );
   }
+
+  return registeredNames;
 }
 
 /**

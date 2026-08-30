@@ -10,6 +10,7 @@ import { calculateStreak } from '../engine/streak';
 import { getDueForReview } from '../engine/spaced-repetition';
 import { getRecommendation } from '../engine/recommend';
 import { setClientState, getClientState } from '../webmcp/state';
+import { getWebMCPStatus } from '../webmcp/register';
 import { showToast } from './toast';
 import type { ProblemProgress } from '../engine/types';
 
@@ -83,10 +84,17 @@ export async function renderDashboard(
           <span class="stat-label">Solved:</span>
           <span class="stat-val">${skillGraph.totalSolved}/${problems.length}</span>
         </div>
-        <div class="webmcp-indicator">
-          <div class="dot"></div>
-          <span>WebMCP Ready</span>
-        </div>
+        ${
+          getWebMCPStatus() === 'failed'
+            ? `<div class="webmcp-indicator" style="color: var(--red); border-color: var(--red-dim); background: #200202;">
+                <div class="dot" style="background: var(--red); box-shadow: 0 0 8px var(--red);"></div>
+                <span>WebMCP Failed</span>
+              </div>`
+            : `<div class="webmcp-indicator">
+                <div class="dot"></div>
+                <span>WebMCP Ready</span>
+              </div>`
+        }
         <button id="btn-demo-reset" class="secondary" title="Reset or Reload Demo Seed">
           ↺ Reset Demo
         </button>

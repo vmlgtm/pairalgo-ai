@@ -17,7 +17,7 @@ async function initApp() {
   await seedInitialData(isDemo);
 
   // Register WebMCP Tools
-  registerAllTools();
+  await registerAllTools();
 
   // Simple Router
   const handleRoute = async () => {

@@ -3,6 +3,7 @@ import { runTests as executeSandbox } from '../runner/runner';
 import { submitSolutionTool } from '../webmcp/tools/submitSolution';
 import { initEditor, setEditorValue, getEditorValue, disposeEditor } from './editor';
 import { setClientState } from '../webmcp/state';
+import { getWebMCPStatus } from '../webmcp/register';
 import { showScorecardModal } from './modal';
 import { showToast } from './toast';
 import type { Problem, ProblemProgress, ExecutionResult } from '../engine/types';
@@ -68,10 +69,17 @@ export async function renderWorkspace(
         <button id="btn-back-dashboard" class="secondary">
           ← Dashboard
         </button>
-        <div class="webmcp-indicator">
-          <div class="dot"></div>
-          <span>WebMCP Ambient Agent Connected</span>
-        </div>
+        ${
+          getWebMCPStatus() === 'failed'
+            ? `<div class="webmcp-indicator" style="color: var(--red); border-color: var(--red-dim); background: #200202;">
+                <div class="dot" style="background: var(--red); box-shadow: 0 0 8px var(--red);"></div>
+                <span>WebMCP Failed</span>
+              </div>`
+            : `<div class="webmcp-indicator">
+                <div class="dot"></div>
+                <span>WebMCP Ambient Agent Connected</span>
+              </div>`
+        }
       </div>
     </header>
 

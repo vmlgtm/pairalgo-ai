@@ -46,9 +46,15 @@ export function setClientState(partial: Partial<ClientState>): ClientState {
   // 3. Store on window for inspection
   if (typeof window !== 'undefined') {
     (window as any).__webmcp_client_state = currentClientState;
-    window.dispatchEvent(
-      new CustomEvent('prep-cockpit:state-change', { detail: currentClientState })
-    );
+    if (typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('prep-cockpit:state-change', { detail: currentClientState })
+        );
+      } catch (e) {
+        // Ignore custom event dispatch errors in testing environments
+      }
+    }
   }
 
   // Notify internal listeners
