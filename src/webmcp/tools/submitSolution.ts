@@ -46,9 +46,12 @@ export const submitSolutionTool = {
     problemId?: string;
     code?: string;
     timeSpentSeconds?: number;
+    actor?: 'agent' | 'user';
   } = {}) => {
     const currentState = getClientState();
     const problemId = args.problemId || currentState.activeProblemId;
+    const actor = args.actor || 'agent';
+    const actorLabel = actor === 'user' ? 'You' : 'ChatGPT';
 
     if (!problemId) {
       return {
@@ -147,9 +150,9 @@ export const submitSolutionTool = {
       });
 
       addActivityEvent({
-        actor: 'agent',
+        actor,
         type: 'solution_submitted',
-        summary: `ChatGPT submitted solution — Failed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
+        summary: `${actorLabel} submitted solution — Failed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
         problemId: problem.id,
         problemTitle: problem.title,
         metadata: {
@@ -262,9 +265,9 @@ export const submitSolutionTool = {
     });
 
     addActivityEvent({
-      actor: 'agent',
+      actor,
       type: 'solution_submitted',
-      summary: `ChatGPT submitted solution — Passed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
+      summary: `${actorLabel} submitted solution — Passed (${execResult.passedCount}/${execResult.totalCount} tests passed)`,
       problemId: problem.id,
       problemTitle: problem.title,
       metadata: {

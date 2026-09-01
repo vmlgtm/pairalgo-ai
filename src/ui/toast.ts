@@ -1,3 +1,5 @@
+import { iconCheckCircle, iconXCircle, iconLightbulb } from './icons';
+
 export type ToastType = 'info' | 'success' | 'error' | 'warning';
 
 export function showToast(message: string, type: ToastType = 'info', durationMs: number = 3000): void {
@@ -14,8 +16,13 @@ export function showToast(message: string, type: ToastType = 'info', durationMs:
   toast.className = `toast ${type}`;
 
   const icon =
-    type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
-  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    type === 'success'
+      ? iconCheckCircle({ size: 14, className: 'icon' })
+      : type === 'error'
+      ? iconXCircle({ size: 14, className: 'icon' })
+      : iconLightbulb({ size: 14, className: 'icon' });
+
+  toast.innerHTML = `<span class="toast-icon">${icon}</span> <span class="toast-message">${message}</span>`;
 
   container.appendChild(toast);
 

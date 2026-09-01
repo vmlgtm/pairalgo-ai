@@ -1,5 +1,6 @@
 import type { Problem } from '../engine/types';
 import type { SM2UpdateResult } from '../engine/spaced-repetition';
+import { iconCheckCircle, iconArrowRight, iconArrowLeft } from './icons';
 
 export interface ScorecardData {
   problem: Problem;
@@ -40,9 +41,12 @@ export function showScorecardModal(
   overlay.innerHTML = `
     <div class="modal-card">
       <div class="scorecard-header">
-        <div class="scorecard-badge">✓ Solved & Verified</div>
+        <div class="scorecard-badge">
+          ${iconCheckCircle({ size: 12, className: 'icon' })}
+          <span>Solved & Verified</span>
+        </div>
         <h2 class="scorecard-title">${data.problem.title}</h2>
-        <span class="badge ${data.problem.difficulty}">${data.problem.difficulty}</span>
+        <span class="diff-text ${data.problem.difficulty}" style="font-size: 12px;">${data.problem.difficulty[0].toUpperCase() + data.problem.difficulty.slice(1)}</span>
       </div>
 
       <div class="scorecard-metrics">
@@ -73,8 +77,14 @@ export function showScorecardModal(
       </div>
 
       <div class="scorecard-actions">
-        <button id="btn-modal-dashboard" class="secondary">Back to Dashboard</button>
-        <button id="btn-modal-next" class="primary">Next Recommended Challenge →</button>
+        <button id="btn-modal-dashboard" class="secondary">
+          ${iconArrowLeft({ size: 12, className: 'icon' })}
+          <span>Dashboard</span>
+        </button>
+        <button id="btn-modal-next" class="primary">
+          <span>Next Challenge</span>
+          ${iconArrowRight({ size: 12, className: 'icon' })}
+        </button>
       </div>
     </div>
   `;

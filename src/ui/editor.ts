@@ -15,6 +15,63 @@ export async function initEditor(
 
   const monaco = await loader.init();
 
+  // Register common algorithm data structure definitions so Monaco TS diagnostics recognize TreeNode, ListNode, etc.
+  const dsLib = `
+declare class ListNode {
+  val: number;
+  next: ListNode | null;
+  constructor(val?: number, next?: ListNode | null);
+}
+
+declare class TreeNode {
+  val: number;
+  left: TreeNode | null;
+  right: TreeNode | null;
+  constructor(val?: number, left?: TreeNode | null, right?: TreeNode | null);
+}
+
+declare class Node {
+  val: number;
+  neighbors?: Node[];
+  left?: Node | null;
+  right?: Node | null;
+  next?: Node | null;
+  random?: Node | null;
+  children?: Node[];
+  constructor(val?: number);
+}
+
+declare class Interval {
+  start: number;
+  end: number;
+  constructor(start?: number, end?: number);
+}
+
+declare class Point {
+  x: number;
+  y: number;
+  constructor(x?: number, y?: number);
+}
+`;
+
+  if (monaco.languages?.typescript?.typescriptDefaults) {
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(
+      dsLib,
+      'ts:filename/ds-helpers.d.ts'
+    );
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false,
+      noSyntaxValidation: false
+    });
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ES2020,
+      allowNonTextFiles: true,
+      noLib: false,
+      allowJs: true,
+      checkJs: true
+    });
+  }
+
   editorInstance = monaco.editor.create(container, {
     value: initialCode,
     language: 'typescript',

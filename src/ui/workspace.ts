@@ -4,11 +4,23 @@ import { submitSolutionTool } from '../webmcp/tools/submitSolution';
 import { initEditor, setEditorValue, getEditorValue, disposeEditor } from './editor';
 import { setClientState } from '../webmcp/state';
 import { addActivityEvent } from '../webmcp/events';
-import { getWebMCPStatus } from '../webmcp/register';
 import { showScorecardModal } from './modal';
 import { showToast } from './toast';
 import { renderPairGuideHtml, bindGuidePromptClicks, copyPromptToClipboard } from './guide';
 import { renderActivityFeedHtml, initLiveActivityFeed } from './activity-feed';
+import { initCompanionDrawer } from './companion-drawer';
+import {
+  iconArrowLeft,
+  iconClock,
+  iconLightbulb,
+  iconFileText,
+  iconBot,
+  iconPlay,
+  iconCheck,
+  iconRotateCcw,
+  iconCopy,
+  iconTerminal
+} from './icons';
 import type { Problem, ProblemProgress, ExecutionResult } from '../engine/types';
 
 let timerInterval: any = null;
@@ -43,6 +55,9 @@ export async function renderWorkspace(
     return;
   }
 
+  // Mount Companion Drawer without floating sticker (accessed via header button)
+  const drawer = initCompanionDrawer(document.body, problem.id, { showSticker: false });
+
   const activeProblem: Problem = problem;
 
   const existingProgress = await getProgress(problem.id);
@@ -74,46 +89,57 @@ export async function renderWorkspace(
     <header class="app-header">
       <div class="brand" id="workspace-brand">
         <div class="brand-logo">PA</div>
-        <div>
-          <span class="brand-title">PAIRALGO.AI</span>
-          <span class="brand-subtitle">AI Pair Cockpit • WebMCP</span>
-        </div>
+        <span class="brand-title">PAIRALGO</span>
       </div>
 
-      <div class="header-stats">
-        <button id="btn-back-dashboard" class="secondary">
-          ← Dashboard
+      <div class="header-right">
+        <button id="btn-header-pair-ws" class="header-action-badge" title="Open ChatGPT Pairing Guide & Live Activity Feed">
+          <span class="sticker-sparkle" style="font-size: 13px;">✦</span>
+          <span>Pair in ChatGPT</span>
         </button>
-        ${
-          getWebMCPStatus() === 'failed'
-            ? `<div class="webmcp-indicator" style="color: var(--red); border-color: var(--red-dim); background: #200202;">
-                <div class="dot" style="background: var(--red); box-shadow: 0 0 8px var(--red);"></div>
-                <span>WebMCP Failed</span>
-              </div>`
-            : `<div class="webmcp-indicator">
-                <div class="dot"></div>
-                <span>WebMCP Ambient Agent Connected</span>
-              </div>`
-        }
+        <button id="btn-back-dashboard" class="secondary" style="padding: 4px 10px; font-size: 11px;">
+          ${iconArrowLeft({ size: 12, className: 'icon' })}
+          <span>Dashboard</span>
+        </button>
       </div>
     </header>
 
     <div class="workspace-container">
-      <!-- Left Panel: Problem Spec, Guide, Activity Feed & Test Runner -->
+      <!-- Left Panel: Problem Spec, Tabs, Guide & Test Runner -->
       <div class="workspace-left-panel">
         <div class="workspace-header">
           <div class="workspace-title-group">
             <span class="workspace-title">${problem.title}</span>
-            <span class="badge ${problem.difficulty}">${problem.difficulty}</span>
-            <span class="badge">${problem.category}</span>
+            <span class="diff-text ${problem.difficulty}" style="font-size: 12px; line-height: 1;">${problem.difficulty[0].toUpperCase() + problem.difficulty.slice(1)}</span>
+            <span class="workspace-meta-sep">•</span>
+            <span class="workspace-category">${problem.category}</span>
           </div>
 
           <div id="timer-display" class="timer-pill">
-            ⏱ <span>${formatTimer(remainingSeconds)}</span>
+            ${iconClock({ size: 12, className: 'icon' })}
+            <span>${formatTimer(remainingSeconds)}</span>
           </div>
         </div>
 
-        <div class="workspace-content">
+        <!-- Segmented Tab Navigation -->
+        <div class="workspace-tabs-bar" id="workspace-tab-controls">
+          <button class="tab-btn active" data-pane="pane-spec">
+            ${iconFileText({ size: 12, className: 'icon' })}
+            <span>Spec & Tests</span>
+          </button>
+          <button class="tab-btn" data-pane="pane-pair">
+            ${iconBot({ size: 12, className: 'icon' })}
+            <span>AI Pair & Hints</span>
+            <span class="tab-badge" id="tab-hints-badge">${hintsRevealed > 0 ? hintsRevealed : ''}</span>
+          </button>
+          <button class="tab-btn" data-pane="pane-notes">
+            ${iconTerminal({ size: 12, className: 'icon' })}
+            <span>Scratchpad</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Spec & Test Runner -->
+        <div id="pane-spec" class="workspace-tab-pane active">
           <!-- Problem Description -->
           <div class="problem-description">
             <p>${problem.description}</p>
@@ -131,47 +157,11 @@ export async function renderWorkspace(
             </div>
           </div>
 
-          <!-- Pair with ChatGPT Guide Card -->
-          ${renderPairGuideHtml('workspace')}
-
-          <!-- Socratic Hints Drawer -->
-          <div class="hints-container">
-            <div class="hints-header">
-              <span class="hints-header-title">💡 Socratic Hints (${hintsRevealed}/${problem.hints.length})</span>
-              ${
-                hintsRevealed < problem.hints.length
-                  ? `<button id="btn-reveal-hint" class="secondary" style="padding: 3px 8px; font-size: 11px;">
-                      Reveal Hint ${hintsRevealed + 1}
-                    </button>`
-                  : `<span style="font-size: 11px; color: var(--green);">All Hints Revealed</span>`
-              }
-            </div>
-            <div id="hints-body" style="display: flex; flex-direction: column; gap: 8px;">
-              ${renderHintsHtml(problem, hintsRevealed)}
-            </div>
-          </div>
-
-          <!-- In-App Agent Activity Feed Scoped to Active Problem -->
-          ${renderActivityFeedHtml(problem.id, 6)}
-
-          <!-- Declarative HTML WebMCP Notes Scratchpad -->
-          <div class="notes-container">
-            <span class="notes-label">📝 Notes & Complexity Scratchpad (WebMCP Annotated)</span>
-            <form id="notes-form" data-model-context="problem_notes">
-              <textarea
-                name="notes"
-                id="notes-textarea"
-                class="notes-textarea"
-                placeholder="Write your approach, invariants, edge cases, and time/space complexity notes here..."
-              >${existingProgress?.savedNotes || ''}</textarea>
-            </form>
-          </div>
-
           <!-- Test Cases Runner Output -->
           <div class="test-results-panel">
             <div class="test-results-header">
               <span id="test-results-title">Test Cases (${problem.testCases.length})</span>
-              <span id="test-results-meta" style="color: var(--text-dim);">Press Cmd+S to run</span>
+              <span id="test-results-meta" style="color: var(--text-dim);">Cmd+S to run</span>
             </div>
 
             <div class="test-cases-tabs" id="tc-tabs">
@@ -191,6 +181,53 @@ export async function renderWorkspace(
             </div>
           </div>
         </div>
+
+        <!-- Tab 2: AI Pair Guide, Socratic Hints & Activity Feed -->
+        <div id="pane-pair" class="workspace-tab-pane">
+          <!-- Socratic Hints Drawer -->
+          <div class="hints-container">
+            <div class="hints-header">
+              <span class="hints-header-title">
+                ${iconLightbulb({ size: 13, className: 'icon' })}
+                <span>Socratic Hints (${hintsRevealed}/${problem.hints.length})</span>
+              </span>
+              ${
+                hintsRevealed < problem.hints.length
+                  ? `<button id="btn-reveal-hint" class="secondary" style="padding: 2px 7px; font-size: 11px;">
+                      Reveal Hint ${hintsRevealed + 1}
+                    </button>`
+                  : `<span style="font-size: 11px; color: var(--green);">All Hints Revealed</span>`
+              }
+            </div>
+            <div id="hints-body" style="display: flex; flex-direction: column; gap: 8px;">
+              ${renderHintsHtml(problem, hintsRevealed)}
+            </div>
+          </div>
+
+          <!-- Pair with ChatGPT Guide Card -->
+          ${renderPairGuideHtml('workspace')}
+
+          <!-- In-App Agent Activity Feed Scoped to Active Problem -->
+          ${renderActivityFeedHtml(problem.id, 6)}
+        </div>
+
+        <!-- Tab 3: Declarative HTML WebMCP Notes Scratchpad -->
+        <div id="pane-notes" class="workspace-tab-pane">
+          <div class="notes-container">
+            <span class="notes-label">
+              ${iconFileText({ size: 12, className: 'icon' })}
+              <span>Notes & Complexity Scratchpad (WebMCP Annotated)</span>
+            </span>
+            <form id="notes-form" data-model-context="problem_notes">
+              <textarea
+                name="notes"
+                id="notes-textarea"
+                class="notes-textarea"
+                placeholder="Write your approach, invariants, edge cases, and time/space complexity notes here..."
+              >${existingProgress?.savedNotes || ''}</textarea>
+            </form>
+          </div>
+        </div>
       </div>
 
       <!-- Right Panel: Monaco Editor, Dirty Cue & Controls -->
@@ -201,20 +238,22 @@ export async function renderWorkspace(
             <span class="editor-hint">• Cmd+S / Ctrl+S to run</span>
           </div>
           <button id="btn-reset-code" class="secondary" style="padding: 2px 8px; font-size: 11px;">
-            ↺ Reset Code
+            ${iconRotateCcw({ size: 11, className: 'icon' })}
+            <span>Reset Code</span>
           </button>
         </div>
 
         <div id="monaco-editor-container" class="monaco-container"></div>
 
         <!-- Subtle "Run Latest Code" Dirty State Cue -->
-        <div id="editor-dirty-cue" class="dirty-cue-banner" style="display: none; margin: 0 16px 8px 16px;">
+        <div id="editor-dirty-cue" class="dirty-cue-banner" style="display: none; margin: 0 14px 8px 14px;">
           <div class="dirty-cue-left">
             <div class="dirty-cue-dot"></div>
-            <span class="dirty-cue-text">Code changed since last test. Ask ChatGPT to run your latest code.</span>
+            <span class="dirty-cue-text">Code modified since last run. Ask ChatGPT to test latest code.</span>
           </div>
           <button class="dirty-cue-copy-btn" data-copy-prompt="Run my latest code and explain any failing test." title="Click to copy prompt for ChatGPT">
-            <span>📋 Copy Prompt</span>
+            ${iconCopy({ size: 10, className: 'icon' })}
+            <span>Copy Prompt</span>
           </button>
         </div>
 
@@ -222,18 +261,34 @@ export async function renderWorkspace(
           <div id="editor-status" class="editor-status-text">
             Ready to test
           </div>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 8px;">
             <button id="btn-run-tests" class="secondary" style="font-weight: 600;">
-              ▶ Run Tests (Cmd+S)
+              ${iconPlay({ size: 11, className: 'icon' })}
+              <span>Run Tests</span>
             </button>
             <button id="btn-submit" class="success">
-              ✓ Submit Solution
+              ${iconCheck({ size: 12, className: 'icon' })}
+              <span>Submit Solution</span>
             </button>
           </div>
         </div>
       </div>
     </div>
   `;
+
+  // Bind Segmented Tabs in Left Rail
+  const tabButtons = container.querySelectorAll('.workspace-tabs-bar .tab-btn');
+  const tabPanes = container.querySelectorAll('.workspace-tab-pane');
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const paneId = btn.getAttribute('data-pane');
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabPanes.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const activePane = container.querySelector(`#${paneId}`);
+      if (activePane) activePane.classList.add('active');
+    });
+  });
 
   // Start Countdown Timer
   const timerSpan = container.querySelector('#timer-display span') as HTMLElement;
@@ -253,8 +308,17 @@ export async function renderWorkspace(
   function updateHintsUI() {
     const hintsBody = container.querySelector('#hints-body');
     const headerTitle = container.querySelector('.hints-header-title');
+    const hintsBadge = container.querySelector('#tab-hints-badge');
     if (hintsBody) hintsBody.innerHTML = renderHintsHtml(activeProblem, hintsRevealed);
-    if (headerTitle) headerTitle.innerHTML = `💡 Socratic Hints (${hintsRevealed}/${activeProblem.hints.length})`;
+    if (headerTitle) {
+      headerTitle.innerHTML = `
+        ${iconLightbulb({ size: 13, className: 'icon' })}
+        <span>Socratic Hints (${hintsRevealed}/${activeProblem.hints.length})</span>
+      `;
+    }
+    if (hintsBadge) {
+      hintsBadge.textContent = hintsRevealed > 0 ? String(hintsRevealed) : '';
+    }
 
     const revealBtn = container.querySelector('#btn-reveal-hint');
     if (revealBtn) {
@@ -262,7 +326,10 @@ export async function renderWorkspace(
         revealBtn.innerHTML = `Reveal Hint ${hintsRevealed + 1}`;
       } else {
         revealBtn.parentElement!.innerHTML = `
-          <span class="hints-header-title">💡 Socratic Hints (${hintsRevealed}/${activeProblem.hints.length})</span>
+          <span class="hints-header-title">
+            ${iconLightbulb({ size: 13, className: 'icon' })}
+            <span>Socratic Hints (${hintsRevealed}/${activeProblem.hints.length})</span>
+          </span>
           <span style="font-size: 11px; color: var(--green);">All Hints Revealed</span>
         `;
       }
@@ -402,6 +469,12 @@ export async function renderWorkspace(
 
     updateTestResultsUI(result);
 
+    // Switch to Spec tab if not already there so results are visible
+    const specTabBtn = container.querySelector('.tab-btn[data-pane="pane-spec"]') as HTMLElement;
+    if (specTabBtn && !specTabBtn.classList.contains('active')) {
+      specTabBtn.click();
+    }
+
     if (result.error) {
       showToast(result.error, 'error');
     } else if (result.allPassed) {
@@ -418,7 +491,8 @@ export async function renderWorkspace(
     const res = await submitSolutionTool.execute({
       problemId: activeProblem.id,
       code,
-      timeSpentSeconds: timeSpent
+      timeSpentSeconds: timeSpent,
+      actor: 'user'
     });
 
     if (!res.passed) {
@@ -455,7 +529,6 @@ export async function renderWorkspace(
     showScorecardModal(
       data,
       () => {
-        // Next problem
         onNavigateProblem('course-schedule');
       },
       () => {
@@ -469,6 +542,7 @@ export async function renderWorkspace(
     window.removeEventListener('prep-cockpit:tests-executed', onTestsExecuted);
     window.removeEventListener('prep-cockpit:hint-revealed', onHintRevealed);
     window.removeEventListener('prep-cockpit:scorecard', onScorecard);
+    drawer.destroy();
   };
 
   // Initialize Monaco Editor
@@ -519,6 +593,10 @@ export async function renderWorkspace(
   });
 
   // Event Listeners
+  container.querySelector('#btn-header-pair-ws')?.addEventListener('click', () => {
+    drawer.open('prompts');
+  });
+
   container.querySelector('#btn-back-dashboard')?.addEventListener('click', () => {
     if (activeCleanupListeners) activeCleanupListeners();
     onNavigateDashboard();
@@ -562,7 +640,7 @@ export async function renderWorkspace(
     }
   });
 
-  // Tab clicks on initial load
+  // Tab clicks on initial load for test cases
   container.querySelectorAll('.tc-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const idx = Number(tab.getAttribute('data-index'));
@@ -576,7 +654,7 @@ export async function renderWorkspace(
 
 function renderHintsHtml(problem: Problem, revealedCount: number): string {
   if (revealedCount === 0) {
-    return `<div style="color: var(--text-dim); font-size: 12px; font-family: var(--font-mono);">Click "Reveal Hint" to get progressive Socratic clues without spoiling the solution.</div>`;
+    return `<div style="color: var(--text-dim); font-size: 11px; font-family: var(--font-mono);">Click "Reveal Hint" to get progressive Socratic clues without spoiling the solution.</div>`;
   }
 
   const levelTitles = [
@@ -599,10 +677,32 @@ function renderHintsHtml(problem: Problem, revealedCount: number): string {
   return html;
 }
 
+function formatTestCaseValue(val: any): string {
+  if (val === undefined) return 'undefined';
+  if (val === null) return 'null';
+  if (typeof val === 'string') return `"${val}"`;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+
+  if (Array.isArray(val)) {
+    return JSON.stringify(val).replace(/,/g, ', ');
+  }
+
+  return JSON.stringify(val);
+}
+
+function formatTestCaseInput(input: Record<string, any>): string {
+  if (!input || typeof input !== 'object') return String(input);
+  const entries = Object.entries(input);
+  if (entries.length === 0) return '{}';
+  return entries
+    .map(([paramName, val]) => `${paramName} = ${formatTestCaseValue(val)}`)
+    .join(', ');
+}
+
 function renderTestCaseDetail(tc: any, res: any): string {
-  const inputStr = JSON.stringify(tc.input, null, 2);
-  const expectedStr = JSON.stringify(tc.expected, null, 2);
-  const actualStr = res ? JSON.stringify(res.actual, null, 2) : 'Not run yet';
+  const inputStr = formatTestCaseInput(tc.input);
+  const expectedStr = formatTestCaseValue(tc.expected);
+  const actualStr = res ? formatTestCaseValue(res.actual) : 'Not run yet';
   const logsStr = res?.logs && res.logs.length > 0 ? res.logs.join('\n') : null;
 
   return `
@@ -616,7 +716,7 @@ function renderTestCaseDetail(tc: any, res: any): string {
         <div class="tc-field-val">${expectedStr}</div>
       </div>
       <div class="tc-field">
-        <span class="tc-field-label">Actual Output ${res ? (res.passed ? '<span style="color: var(--green);">(Passed)</span>' : '<span style="color: var(--red);">(Failed)</span>') : ''}</span>
+        <span class="tc-field-label">Actual Output ${res ? (res.passed ? '<span style="color: var(--green); font-weight: 600;">(Passed)</span>' : '<span style="color: var(--red); font-weight: 600;">(Failed)</span>') : ''}</span>
         <div class="tc-field-val" style="color: ${res ? (res.passed ? 'var(--green)' : 'var(--red)') : 'var(--text-dim)'};">${actualStr}</div>
       </div>
       ${

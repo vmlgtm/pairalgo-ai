@@ -1,10 +1,20 @@
 import { showToast } from './toast';
+import {
+  iconBot,
+  iconTarget,
+  iconPlay,
+  iconTerminal,
+  iconLightbulb,
+  iconCopy,
+  iconCheck,
+  iconLock
+} from './icons';
 
 export interface GuidePrompt {
   label: string;
   prompt: string;
   context: 'dashboard' | 'workspace' | 'both';
-  icon: string;
+  iconSvg: string;
 }
 
 export const SUGGESTED_PROMPTS: GuidePrompt[] = [
@@ -12,25 +22,25 @@ export const SUGGESTED_PROMPTS: GuidePrompt[] = [
     label: 'Ask for next problem',
     prompt: 'What should I practice today?',
     context: 'dashboard',
-    icon: '🎯'
+    iconSvg: iconTarget({ size: 12 })
   },
   {
     label: 'Start challenge',
     prompt: 'Start the recommended problem.',
     context: 'dashboard',
-    icon: '🚀'
+    iconSvg: iconPlay({ size: 12 })
   },
   {
     label: 'Run latest code',
     prompt: 'Run my latest code and explain any failing test.',
     context: 'workspace',
-    icon: '⚡'
+    iconSvg: iconTerminal({ size: 12 })
   },
   {
     label: 'Request hint 1',
     prompt: 'Give me hint 1 without revealing the solution.',
     context: 'workspace',
-    icon: '💡'
+    iconSvg: iconLightbulb({ size: 12 })
   }
 ];
 
@@ -54,16 +64,16 @@ export async function copyPromptToClipboard(text: string, buttonEl?: HTMLElement
     }
 
     if (buttonEl) {
-      const originalText = buttonEl.innerHTML;
-      buttonEl.innerHTML = `✓ Copied`;
+      const originalHtml = buttonEl.innerHTML;
+      buttonEl.innerHTML = `${iconCheck({ size: 12, className: 'icon' })} <span>Copied</span>`;
       buttonEl.classList.add('copied');
       setTimeout(() => {
-        buttonEl.innerHTML = originalText;
+        buttonEl.innerHTML = originalHtml;
         buttonEl.classList.remove('copied');
       }, 1500);
     }
 
-    showToast(`Prompt copied to clipboard!`, 'info');
+    showToast('Prompt copied to clipboard', 'info');
   } catch (err) {
     showToast('Failed to copy prompt', 'error');
   }
@@ -81,11 +91,11 @@ export function renderPairGuideHtml(variant: 'dashboard' | 'workspace'): string 
   return `
     <div class="card pair-guide-card ${isDashboard ? 'dashboard-guide' : 'workspace-guide'}">
       <div class="card-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="guide-icon">🤖</span>
-          <span class="card-title">Pair with ChatGPT</span>
+        <div class="card-title">
+          ${iconBot({ size: 14, className: 'icon' })}
+          <span>Pair with ChatGPT</span>
         </div>
-        <span class="badge" style="color: var(--green); border-color: var(--green-dim); font-size: 10px;">WebMCP</span>
+        <span class="badge webmcp">WebMCP</span>
       </div>
 
       <div class="guide-body">
@@ -104,9 +114,9 @@ export function renderPairGuideHtml(variant: 'dashboard' | 'workspace'): string 
               .map(
                 p => `
               <button class="prompt-chip" data-copy-prompt="${escapeHtml(p.prompt)}" title="Click to copy prompt for ChatGPT">
-                <span class="prompt-icon">${p.icon}</span>
-                <span class="prompt-text">${p.prompt}</span>
-                <span class="prompt-copy-icon">📋</span>
+                <span class="prompt-icon">${p.iconSvg}</span>
+                <span class="prompt-text">${escapeHtml(p.prompt)}</span>
+                <span class="prompt-copy-icon">${iconCopy({ size: 11, className: 'icon' })}</span>
               </button>
             `
               )
@@ -115,7 +125,8 @@ export function renderPairGuideHtml(variant: 'dashboard' | 'workspace'): string 
         </div>
 
         <div class="guide-footer-note">
-          🔒 Code is only shared with ChatGPT when you ask it to run or submit. Typing does not automatically transmit code.
+          ${iconLock({ size: 12, className: 'icon' })}
+          <span>Code is only shared with ChatGPT when you ask it to run or submit. Typing does not automatically transmit code.</span>
         </div>
       </div>
     </div>
